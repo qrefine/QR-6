@@ -56,18 +56,19 @@ def get_non_standard_items(pdb_hierarchy):
 
 def find_ss_across_symmetry(super_cell):
   ph_ss = super_cell.ph_super_sphere
-  #super_cell.ph_super_sphere.write_pdb_file(file_name="super_sphere.pdb")
-  origin_chain = []
-  general_chain = []
+  #super_cell.ph_super_sphere.write_pdb_file
+  # (file_name="super_sphere.pdb")
   for chain in ph_ss.chains():
     if (len(chain.id) < 2):
-      origin_chain.append(chain.id)
+      for atom in chain.atoms().extract_element():
+        if atom =="S":
+            print dir(atom)
+
     else:
-      general_chain.append(chain.id)
-  print origin_chain
-  print general_chain
+      print "general"
+
   
- STOP()
+  STOP()
 
 
 """Metals (identity and counts), ions"""
