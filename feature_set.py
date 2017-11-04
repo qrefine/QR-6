@@ -56,23 +56,50 @@ def get_non_standard_items(pdb_hierarchy):
 
 def find_ss_across_symmetry(super_cell):
   ph_ss = super_cell.ph_super_sphere
-  #super_cell.ph_super_sphere.write_pdb_file
-  # (file_name="super_sphere.pdb")
+  cys_master = []
+  cys_copies = []
+  def fill_it(container, chain):
+    for rg in chain.residue_groups():
+      for ag in rg.atom_groups():
+        if(ag.resname == "CYS"):
+          container.append(ag)
   for chain in ph_ss.chains():
-    if (len(chain.id) < 2):
-      for atom in chain.atoms().extract_element():
-        if atom =="S":
-            print dir(atom)
-
+    if(len(chain.id.strip()) == 1):
+      fill_it(container = cys_master, chain = chain)
     else:
-      print "general"
-
+      fill_it(container = cys_copies, chain = chain)
+      
+      
+  print "cys_master:", len(cys_master)
+  print "cys_copies:", len(cys_copies)
+  STOP()
+          
+          #print dir(ag)
+          #STOP()
+        #for conf in rg.conformers():
+        #  print dir(conf)
+        #  STOP()
+          
+#      for atom in chain.atoms().extract_element():
+#        if atom =="S":
+#            print dir(atom)
+#
+#    else:
+#      print "general"
+#
   
   STOP()
 
 
 """Metals (identity and counts), ions"""
 
+def get_resolution(pdb_inp):
+  resolution = None
+  resolutions = iotbx.pdb.remark_2_interpretation.extract_resolution(
+    pdb_inp.extract_remark_iii_records(2))
+  if(resolutions is not None):
+    resolution = resolutions[0]
+  return resolution
 
 def run(file_name):
     pdb_inp = iotbx.pdb.input(file_name=file_name)
@@ -80,8 +107,7 @@ def run(file_name):
     """Crystal symmetry"""
     crystal_symmetry = pdb_inp.crystal_symmetry()
     """ Data resolution"""
-    resolution = iotbx.pdb.remark_2_interpretation.extract_resolution(
-      pdb_inp.extract_remark_iii_records(2))[0]
+    resolution = get_resolution(pdb_inp = pdb_inp)
     """Number of atoms(super sphere)"""
     super_cell = expand(
       pdb_hierarchy=pdb_hierarchy,
