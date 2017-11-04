@@ -53,10 +53,20 @@ def get_non_standard_items(pdb_hierarchy):
 
 """S-S"""
 
-def find_ss_across_symmetry(super_cell): 
-  
-  super_cell.ph_super_sphere.write_pdb_file(file_name="super_sphere.pdb")
-  
+def find_ss_across_symmetry(super_cell):
+  ph_ss = super_cell.ph_super_sphere
+  #super_cell.ph_super_sphere.write_pdb_file(file_name="super_sphere.pdb")
+  origin_chain = []
+  general_chain = []
+  for chain in ph_ss.chains():
+    if (len(chain.id) < 2):
+      origin_chain.append(chain.id)
+    else:
+      general_chain.append(chain.id)
+  print origin_chain
+  print general_chain
+
+
   STOP()
   
 
@@ -77,7 +87,6 @@ def run(file_name):
       crystal_symmetry=pdb_inp.crystal_symmetry())
     """Find SS across symmetry"""
     find_ss_across_symmetry(super_cell = super_cell)
-    #print dir(super_cell.crystal_symmetry.special_position_settings())
     result_occupancies = get_altloc_counts(pdb_hierarchy=pdb_hierarchy)
     ligands = get_non_standard_items(pdb_hierarchy=pdb_hierarchy)
     return group_args(
