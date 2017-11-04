@@ -54,8 +54,13 @@ def get_non_standard_items(pdb_hierarchy):
 """S-S"""
 
 def find_ss_across_symmetry(super_cell): 
+  ph_ss = super_cell.ph_super_sphere
+  for chain in ph_ss.chains():
+    print chain.id
+    print dir(chain)
+    STOP()
   
-  super_cell.ph_super_sphere.write_pdb_file(file_name="super_sphere.pdb")
+  #super_cell.ph_super_sphere.write_pdb_file(file_name="super_sphere.pdb")
   
   STOP()
   
