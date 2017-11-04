@@ -54,8 +54,8 @@ def get_non_standard_items(pdb_hierarchy):
 
 """S-S"""
 
-
-def find_ss_across_symmetry(super_cell):
+def find_ss_across_symmetry(super_cell, ss_bond_length_cutoff=2.5):
+  result = []
   ph_ss = super_cell.ph_super_sphere
   cys_master = []
   cys_copies = []
@@ -69,16 +69,24 @@ def find_ss_across_symmetry(super_cell):
       fill_it(container = cys_master, chain = chain)
     else:
       fill_it(container = cys_copies, chain = chain)
-
   for master_ag in cys_master:
-    for copies_ag in cys_copies:
-      ag_xyz =  master_ag.atoms().extract_xyz()[-1]
-      ags_xyz =  copies_ag.atoms().extract_xyz()[-1]
-      distance = math.sqrt((ag_xyz[0]-ags_xyz[0])**2
-                     +(ag_xyz[1]-ags_xyz[1])**2
-                     +(ag_xyz[2]-ags_xyz[2])**2)
-      print distance
-      STOP()
+    for master_atom in master_ag.atoms():
+      if(master_atom.element.strip().upper() == "S"):
+        master_S = master_atom
+    if(master_S is not None):
+      for copies_ag in cys_copies:
+        copy_S = None
+        for copy_atom in copies_ag.atoms():
+          if(copy_atom.element.strip().upper() == "S"):
+            copy_S = copy_atom
+        if(copy_S is not None):
+          r1 = master_S.xyz
+          r2 = copy_S.xyz
+          dist = math.sqrt(
+            (r1[0]-r2[0])**2 + (r1[1]-r2[1])**2 + (r1[2]-r2[2])**2)
+          if(dist < ss_bond_length_cutoff):
+            result.append(master_S.quote())
+  return result
 
 """Metals (identity and counts), ions"""
 
@@ -102,7 +110,7 @@ def run(file_name):
       pdb_hierarchy=pdb_hierarchy,
       crystal_symmetry=pdb_inp.crystal_symmetry())
     """Find SS across symmetry"""
-    find_ss_across_symmetry(super_cell = super_cell)
+    symmetry_ss_bonds = find_ss_across_symmetry(super_cell = super_cell)
     result_occupancies = get_altloc_counts(pdb_hierarchy=pdb_hierarchy)
     ligands = get_non_standard_items(pdb_hierarchy=pdb_hierarchy)
     return group_args(
@@ -113,7 +121,8 @@ def run(file_name):
       space_group_symbol=crystal_symmetry.space_group().type().lookup_symbol(),
       resolution=resolution,
       data_type=pdb_inp.get_experiment_type(),
-      ligands=ligands)
+      ligands=ligands,
+      symmetry_ss_bonds=symmetry_ss_bonds)
 
 
 if __name__ == '__main__':
