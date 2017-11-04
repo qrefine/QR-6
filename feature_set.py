@@ -4,6 +4,7 @@ import collections
 from libtbx import group_args
 from iotbx.pdb import remark_2_interpretation
 from qrefine.super_cell import expand
+import math
 
 """Altlocs"""
 
@@ -68,28 +69,16 @@ def find_ss_across_symmetry(super_cell):
       fill_it(container = cys_master, chain = chain)
     else:
       fill_it(container = cys_copies, chain = chain)
-      
-      
-  print "cys_master:", len(cys_master)
-  print "cys_copies:", len(cys_copies)
-  STOP()
-          
-          #print dir(ag)
-          #STOP()
-        #for conf in rg.conformers():
-        #  print dir(conf)
-        #  STOP()
-          
-#      for atom in chain.atoms().extract_element():
-#        if atom =="S":
-#            print dir(atom)
-#
-#    else:
-#      print "general"
-#
-  
-  STOP()
 
+  for master_ag in cys_master:
+    for copies_ag in cys_copies:
+      ag_xyz =  master_ag.atoms().extract_xyz()[-1]
+      ags_xyz =  copies_ag.atoms().extract_xyz()[-1]
+      distance = math.sqrt((ag_xyz[0]-ags_xyz[0])**2
+                     +(ag_xyz[1]-ags_xyz[1])**2
+                     +(ag_xyz[2]-ags_xyz[2])**2)
+      print distance
+      STOP()
 
 """Metals (identity and counts), ions"""
 
