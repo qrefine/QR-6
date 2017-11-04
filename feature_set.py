@@ -53,36 +53,44 @@ def get_non_standard_items(pdb_hierarchy):
 
 """S-S"""
 
+def find_ss_across_symmetry(super_cell): 
+  
+  super_cell.ph_super_sphere.write_pdb_file(file_name="super_sphere.pdb")
+  
+  STOP()
+  
+
 """Metals (identity and counts), ions"""
 
 
 def run(file_name):
     pdb_inp = iotbx.pdb.input(file_name=file_name)
     pdb_hierarchy = pdb_inp.construct_hierarchy()
-
     """Crystal symmetry"""
     crystal_symmetry = pdb_inp.crystal_symmetry()
     """ Data resolution"""
     resolution = iotbx.pdb.remark_2_interpretation.extract_resolution(
-        pdb_inp.extract_remark_iii_records(2))[0]
+      pdb_inp.extract_remark_iii_records(2))[0]
     """Number of atoms(super sphere)"""
     super_cell = expand(
-        pdb_hierarchy=pdb_hierarchy,
-        crystal_symmetry=pdb_inp.crystal_symmetry())
+      pdb_hierarchy=pdb_hierarchy,
+      crystal_symmetry=pdb_inp.crystal_symmetry())
+    """Find SS across symmetry"""
+    find_ss_across_symmetry(super_cell = super_cell)
     #print dir(super_cell.crystal_symmetry.special_position_settings())
     result_occupancies = get_altloc_counts(pdb_hierarchy=pdb_hierarchy)
     ligands = get_non_standard_items(pdb_hierarchy=pdb_hierarchy)
     return group_args(
-        number_of_atoms=pdb_hierarchy.atoms().size(),
-        number_of_atoms_super_sphere=super_cell.ph_super_sphere.atoms().size(),
-        occupancies=result_occupancies,
-        unit_cell=crystal_symmetry.unit_cell().parameters(),
-        space_group_symbol=crystal_symmetry.space_group().type().lookup_symbol(),
-        resolution=resolution,
-        data_type=pdb_inp.get_experiment_type(),
-        ligands=ligands)
+      number_of_atoms=pdb_hierarchy.atoms().size(),
+      number_of_atoms_super_sphere=super_cell.ph_super_sphere.atoms().size(),
+      occupancies=result_occupancies,
+      unit_cell=crystal_symmetry.unit_cell().parameters(),
+      space_group_symbol=crystal_symmetry.space_group().type().lookup_symbol(),
+      resolution=resolution,
+      data_type=pdb_inp.get_experiment_type(),
+      ligands=ligands)
 
 
 if __name__ == '__main__':
-    result = run(file_name="5bmi.pdb")
+    result = run(file_name="1f8t.pdb")
     print result
