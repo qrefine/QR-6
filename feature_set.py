@@ -53,7 +53,6 @@ def get_non_standard_items(pdb_hierarchy):
       ligand_name_and_num=result
   )
 
-
 """S-S"""
 
 def find_ss_across_symmetry(super_cell, ss_bond_length_cutoff=2.5):
@@ -90,16 +89,6 @@ def find_ss_across_symmetry(super_cell, ss_bond_length_cutoff=2.5):
             result.append(master_S.quote())
   return result
 
-"""Fraction of non-H atom-incomplete residues"""
-def complete_model(pdb_hierarchy):
-  #print dir(extend_sidechains.extend_residue())
-  n_changed = extend_sidechains.extend_protein_model(
-       pdb_hierarchy,
-       mon_lib_server,
-       add_hydrogens=False,
-     )
-  print "number of side chains changed",n_changed
-
 """Metals (identity and counts), ions"""
 
 def get_resolution(pdb_inp):
@@ -110,13 +99,23 @@ def get_resolution(pdb_inp):
     resolution = resolutions[0]
   return resolution
 
+"""Fraction of non-H atom-incomplete residues"""
+def complete_model(pdb_hierarchy):
+  number_of_residues = 0
+  for rg in pdb_hierarchy.residue_groups ( ):
+    number_of_residues += 1
+  n_changed = extend_sidechains.extend_protein_model(
+       pdb_hierarchy,
+       mon_lib_server,
+       add_hydrogens=False,
+     )
+  fraction_of_nonH_incomplete = n_changed * 100. /number_of_residues
+  return  fraction_of_nonH_incomplete
+
 def run(file_name):
   pdb_inp = iotbx.pdb.input(file_name=file_name)
   pdb_hierarchy = pdb_inp.construct_hierarchy()
-
   fraction_of_nonH_incomplete = complete_model(pdb_hierarchy=pdb_hierarchy)
-  print fraction_of_nonH_incomplete
-  STOP()
   """Crystal symmetry"""
   crystal_symmetry = pdb_inp.crystal_symmetry()
   """ Data resolution"""
@@ -138,9 +137,9 @@ def run(file_name):
     resolution                  = resolution,
     data_type                   = pdb_inp.get_experiment_type(),
     ligands                     = ligands,
-    symmetry_ss_bonds           = symmetry_ss_bonds)
+    symmetry_ss_bonds           = symmetry_ss_bonds,
+    fraction_of_nonH_incomplete = fraction_of_nonH_incomplete)
 
-#fraction_of_nonH_incomplete = fraction_of_nonH_incomplete
 if __name__ == '__main__':
-  result = run(file_name="5nis.pdb")
+  result = run(file_name="1f8t.pdb")
   print result
