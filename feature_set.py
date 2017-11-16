@@ -2,14 +2,18 @@ from __future__ import division
 import iotbx.pdb
 import collections
 import math
+import os
+import pickle
 from libtbx import group_args
 from iotbx.pdb import remark_2_interpretation
 from qrefine.super_cell import expand
-import math
 from mmtbx.monomer_library import server
 from mmtbx.building import extend_sidechains
 
+
 mon_lib_server = server.server()
+pdb_dir = "/home/yanting/pdb/pdb/"
+structure_factors_dir = "/home/yanting/pdb/structure_factors"
 
 """Altlocs"""
 
@@ -112,22 +116,36 @@ def complete_model(pdb_hierarchy):
   fraction_of_nonH_incomplete = n_changed * 100. /number_of_residues
   return  fraction_of_nonH_incomplete
 
+"X-ray data available"
+def Xray_data_available(file_name):
+  available = "NO"
+  filename = os.path.split(file_name)[1]
+  keyword = str(filename[3:7])
+  root = "/home/yanting/pdb/structure_factors"
+  for root,dirs,files in os.walk(root):   
+    for name in files:
+      if keyword in name:
+        available = "YES"
+  return available
+
+
 def run(file_name):
   pdb_inp = iotbx.pdb.input(file_name=file_name)
   pdb_hierarchy = pdb_inp.construct_hierarchy()
   fraction_of_nonH_incomplete = complete_model(pdb_hierarchy=pdb_hierarchy)
+  assert pdb_hierarchy.atoms().size() < 10000,"The size is too big"
   """Crystal symmetry"""
   crystal_symmetry = pdb_inp.crystal_symmetry()
   """ Data resolution"""
   resolution = get_resolution(pdb_inp = pdb_inp)
   """Number of atoms(super sphere)"""
   super_cell = expand(
-    pdb_hierarchy=pdb_hierarchy,
-    crystal_symmetry=pdb_inp.crystal_symmetry())
-  """Find SS across symmetry"""
-  symmetry_ss_bonds = find_ss_across_symmetry(super_cell = super_cell)
+    pdb_hierarchy    = pdb_hierarchy,
+    crystal_symmetry = pdb_inp.crystal_symmetry())
+  symmetry_ss_bonds  = find_ss_across_symmetry(super_cell = super_cell)
   result_occupancies = get_altloc_counts(pdb_hierarchy=pdb_hierarchy)
   ligands = get_non_standard_items(pdb_hierarchy=pdb_hierarchy)
+  available = Xray_data_available(file_name=file_name)
   return group_args(
     number_of_atoms             = pdb_hierarchy.atoms().size(),
     number_of_atoms_super_sphere= super_cell.ph_super_sphere.atoms().size(),
@@ -138,8 +156,22 @@ def run(file_name):
     data_type                   = pdb_inp.get_experiment_type(),
     ligands                     = ligands,
     symmetry_ss_bonds           = symmetry_ss_bonds,
-    fraction_of_nonH_incomplete = fraction_of_nonH_incomplete)
+    fraction_of_nonH_incomplete = fraction_of_nonH_incomplete,
+    Xray_data_available         = available)
 
 if __name__ == '__main__':
-  result = run(file_name="1f8t.pdb")
-  print result
+  pickle_dir = "/home/yanting/pickle"
+  pdb_dir = "/home/yanting/test/"
+  for root,dirs,files in os.walk(pdb_dir):
+    for file in files:
+      try:
+        result = run(file_name=os.path.join(root,file))
+        print result
+      except Exception as result:
+        error_file = open('error.log','a')
+        error_file.write("%s : The error is %s \n"%(file[3:7],result))
+        print "The error is",str(result)
+      finally:
+        pickle_file = open(os.path.join(pickle_dir,file[3:7]),'w')
+        pickle.dump(result,pickle_file)
+        pickle_file.close()
