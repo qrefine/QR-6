@@ -166,12 +166,11 @@ if __name__ == '__main__':
     for file in files:
       try:
         result = run(file_name=os.path.join(root,file))
-        print result
+        #print result
+        pickle_file = open(os.path.join(pickle_dir, file[3:7]), 'w')
+        pickle.dump(result, pickle_file)
+        pickle_file.close()
       except Exception as result:
         error_file = open('error.log','a')
         error_file.write("%s : The error is %s \n"%(file[3:7],result))
-        print "The error is",str(result)
-      finally:
-        pickle_file = open(os.path.join(pickle_dir,file[3:7]),'w')
-        pickle.dump(result,pickle_file)
-        pickle_file.close()
+        #print "The error is",str(result)
