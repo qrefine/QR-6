@@ -9,7 +9,7 @@ from iotbx.pdb import remark_2_interpretation
 from qrefine.super_cell import expand
 from mmtbx.monomer_library import server
 from mmtbx.building import extend_sidechains
-
+from libtbx import easy_pickle
 
 mon_lib_server = server.server()
 pdb_dir = "/home/yanting/pdb/pdb/"
@@ -105,47 +105,28 @@ def get_resolution(pdb_inp):
 
 """Fraction of non-H atom-incomplete residues"""
 def complete_model(pdb_hierarchy):
-  number_of_residues = 0
-  for rg in pdb_hierarchy.residue_groups ( ):
-    number_of_residues += 1
+  number_of_residues = len(list(pdb_hierarchy.residue_groups()))
   n_changed = extend_sidechains.extend_protein_model(
-       pdb_hierarchy,
-       mon_lib_server,
-       add_hydrogens=False,
-     )
+    pdb_hierarchy,
+    mon_lib_server,
+    add_hydrogens=False)
   fraction_of_nonH_incomplete = n_changed * 100. /number_of_residues
-  return  fraction_of_nonH_incomplete
-
-"X-ray data available"
-def Xray_data_available(file_name):
-  available = "NO"
-  filename = os.path.split(file_name)[1]
-  keyword = str(filename[3:7])
-  root = "/home/yanting/pdb/structure_factors"
-  for root,dirs,files in os.walk(root):   
-    for name in files:
-      if keyword in name:
-        available = "YES"
-  return available
-
+  return fraction_of_nonH_incomplete
 
 def run(file_name):
   pdb_inp = iotbx.pdb.input(file_name=file_name)
   pdb_hierarchy = pdb_inp.construct_hierarchy()
+  n_atoms = pdb_hierarchy.atoms().size()
+  if(n_atoms > 10000): return None
   fraction_of_nonH_incomplete = complete_model(pdb_hierarchy=pdb_hierarchy)
-  assert pdb_hierarchy.atoms().size() < 10000,"The size is too big"
-  """Crystal symmetry"""
   crystal_symmetry = pdb_inp.crystal_symmetry()
-  """ Data resolution"""
   resolution = get_resolution(pdb_inp = pdb_inp)
-  """Number of atoms(super sphere)"""
   super_cell = expand(
     pdb_hierarchy    = pdb_hierarchy,
     crystal_symmetry = pdb_inp.crystal_symmetry())
   symmetry_ss_bonds  = find_ss_across_symmetry(super_cell = super_cell)
   result_occupancies = get_altloc_counts(pdb_hierarchy=pdb_hierarchy)
   ligands = get_non_standard_items(pdb_hierarchy=pdb_hierarchy)
-  available = Xray_data_available(file_name=file_name)
   return group_args(
     number_of_atoms             = pdb_hierarchy.atoms().size(),
     number_of_atoms_super_sphere= super_cell.ph_super_sphere.atoms().size(),
@@ -156,21 +137,45 @@ def run(file_name):
     data_type                   = pdb_inp.get_experiment_type(),
     ligands                     = ligands,
     symmetry_ss_bonds           = symmetry_ss_bonds,
-    fraction_of_nonH_incomplete = fraction_of_nonH_incomplete,
-    Xray_data_available         = available)
+    fraction_of_nonH_incomplete = fraction_of_nonH_incomplete)
 
 if __name__ == '__main__':
-  pickle_dir = "/home/yanting/pickle"
-  pdb_dir = "/home/yanting/test/"
-  for root,dirs,files in os.walk(pdb_dir):
-    for file in files:
+  # PDB model files
+  path = "/net/cci/pdb_mirror/pdb/"
+  of = open("".join([path,"INDEX"]),"r")
+  files = ["".join([path,f]).strip() for f in of.readlines()]
+  of.close()
+  # PDB reflection data files (list of corresponding codes)
+  dpath = "/net/cci/pdb_mirror/structure_factors/"
+  of = open("".join([dpath,"INDEX"]),"r")
+  dfiles = [
+    os.path.basename("".join([path,f]).strip())[1:5] for f in of.readlines()]
+  of.close()
+  #
+  for f in files:
+    pdb_code = os.path.basename(f)[3:7]
+    if(pdb_code in dfiles):
       try:
-        result = run(file_name=os.path.join(root,file))
-        #print result
-        pickle_file = open(os.path.join(pickle_dir, file[3:7]), 'w')
-        pickle.dump(result, pickle_file)
-        pickle_file.close()
-      except Exception as result:
-        error_file = open('error.log','a')
-        error_file.write("%s : The error is %s \n"%(file[3:7],result))
-        #print "The error is",str(result)
+        result = run(file_name=f)
+        if(result is not None):
+          easy_pickle.dump(pdb_code+".pkl", result)
+      except KeyboardInterrupt: raise
+      except Exception, e:
+        print "FAILED:", f
+        print str(e)
+        print "-"*79
+
+  #pickle_dir = "/home/yanting/pickle"
+  #pdb_dir = "/home/yanting/test/"
+  #for root,dirs,files in os.walk(pdb_dir):
+  #  for file in files:
+  #    try:
+  #      result = run(file_name=os.path.join(root,file))
+  #      #print result
+  #      pickle_file = open(os.path.join(pickle_dir, file[3:7]), 'w')
+  #      pickle.dump(result, pickle_file)
+  #      pickle_file.close()
+  #    except Exception as result:
+  #      error_file = open('error.log','a')
+  #      error_file.write("%s : The error is %s \n"%(file[3:7],result))
+  #      #print "The error is",str(result)
