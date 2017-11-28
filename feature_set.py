@@ -10,6 +10,8 @@ from qrefine.super_cell import expand
 from mmtbx.monomer_library import server
 from mmtbx.building import extend_sidechains
 from libtbx import easy_pickle
+from libtbx.easy_mp import parallel_map
+from libtbx import Auto
 
 mon_lib_server = server.server()
 pdb_dir = "/home/yanting/pdb/pdb/"
@@ -138,6 +140,18 @@ def run(file_name):
     ligands                     = ligands,
     symmetry_ss_bonds           = symmetry_ss_bonds,
     fraction_of_nonH_incomplete = fraction_of_nonH_incomplete)
+def dump_pickle(file_name):
+  try:
+      pdb_code = os.path.basename(file_name)[3:7]
+      result = run(file_name)
+      if(result is not None):
+        easy_pickle.dump(pdb_code+".pkl", result)
+  except KeyboardInterrupt:raise 
+  except Exception, e:
+      print "FAILED:",file_name 
+      print str(e)
+      print "-"*79
+
 
 if __name__ == '__main__':
   # PDB model files
@@ -164,18 +178,3 @@ if __name__ == '__main__':
         print "FAILED:", f
         print str(e)
         print "-"*79
-
-  #pickle_dir = "/home/yanting/pickle"
-  #pdb_dir = "/home/yanting/test/"
-  #for root,dirs,files in os.walk(pdb_dir):
-  #  for file in files:
-  #    try:
-  #      result = run(file_name=os.path.join(root,file))
-  #      #print result
-  #      pickle_file = open(os.path.join(pickle_dir, file[3:7]), 'w')
-  #      pickle.dump(result, pickle_file)
-  #      pickle_file.close()
-  #    except Exception as result:
-  #      error_file = open('error.log','a')
-  #      error_file.write("%s : The error is %s \n"%(file[3:7],result))
-  #      #print "The error is",str(result)
