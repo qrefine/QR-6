@@ -3,15 +3,12 @@ import iotbx.pdb
 import collections
 import math
 import os
-import pickle
 from libtbx import group_args
 from iotbx.pdb import remark_2_interpretation
 from qrefine.super_cell import expand
 from mmtbx.monomer_library import server
 from mmtbx.building import extend_sidechains
 from libtbx import easy_pickle
-from libtbx.easy_mp import parallel_map
-from libtbx import Auto
 
 mon_lib_server = server.server()
 pdb_dir = "/home/yanting/pdb/pdb/"
@@ -30,11 +27,9 @@ def get_altloc_counts(pdb_hierarchy):
       number_of_alt_confs += 1
       alt_loc_dist[n_confs] += 1
     alt_conf_frac = number_of_alt_confs * 100. / number_of_residues
-    # for key, value in zip(alt_loc_dist.keys(), alt_loc_dist.values()):
-    #    print key, value
-    return group_args(
-      alt_conf_frac=alt_conf_frac,
-      alt_loc_dist=alt_loc_dist)
+  return group_args(
+    alt_conf_frac=alt_conf_frac,
+    alt_loc_dist=alt_loc_dist)
 
 """Ligand counts""" """Metals and ions"""
 
@@ -48,13 +43,10 @@ def get_non_standard_items(pdb_hierarchy):
     "modified_rna_dna",
     "ccp4_mon_lib_rna_dna",
     "common_water"]
-
   for rg in pdb_hierarchy.residue_groups():
     for urn in rg.unique_resnames():
       if (not get_class(urn) in ignore):
         result[urn] += 1
-
-    # print ",".join(["%s:%s"%(k,v) for k,v in zip(result.keys(), result.values())])
   return group_args(
       ligand_name_and_num=result
   )
@@ -121,11 +113,11 @@ def run(file_name):
   n_atoms = pdb_hierarchy.atoms().size()
   if(n_atoms > 10000): return None
   fraction_of_nonH_incomplete = complete_model(pdb_hierarchy=pdb_hierarchy)
-  crystal_symmetry = pdb_inp.crystal_symmetry()
+  cs = pdb_inp.crystal_symmetry()
   resolution = get_resolution(pdb_inp = pdb_inp)
   super_cell = expand(
     pdb_hierarchy    = pdb_hierarchy,
-    crystal_symmetry = pdb_inp.crystal_symmetry())
+    crystal_symmetry = cs)
   symmetry_ss_bonds  = find_ss_across_symmetry(super_cell = super_cell)
   result_occupancies = get_altloc_counts(pdb_hierarchy=pdb_hierarchy)
   ligands = get_non_standard_items(pdb_hierarchy=pdb_hierarchy)
@@ -133,25 +125,13 @@ def run(file_name):
     number_of_atoms             = pdb_hierarchy.atoms().size(),
     number_of_atoms_super_sphere= super_cell.ph_super_sphere.atoms().size(),
     occupancies                 = result_occupancies,
-    unit_cell                   = crystal_symmetry.unit_cell().parameters(),
-    space_group_symbol          = crystal_symmetry.space_group().type().lookup_symbol(),
+    unit_cell                   = cs.unit_cell().parameters(),
+    space_group_symbol          = cs.space_group().type().lookup_symbol(),
     resolution                  = resolution,
     data_type                   = pdb_inp.get_experiment_type(),
     ligands                     = ligands,
     symmetry_ss_bonds           = symmetry_ss_bonds,
     fraction_of_nonH_incomplete = fraction_of_nonH_incomplete)
-def dump_pickle(file_name):
-  try:
-      pdb_code = os.path.basename(file_name)[3:7]
-      result = run(file_name)
-      if(result is not None):
-        easy_pickle.dump(pdb_code+".pkl", result)
-  except KeyboardInterrupt:raise 
-  except Exception, e:
-      print "FAILED:",file_name 
-      print str(e)
-      print "-"*79
-
 
 if __name__ == '__main__':
   # PDB model files
