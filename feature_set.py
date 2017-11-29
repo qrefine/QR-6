@@ -112,6 +112,7 @@ def run(file_name):
   pdb_hierarchy = pdb_inp.construct_hierarchy()
   n_atoms = pdb_hierarchy.atoms().size()
   if(n_atoms > 10000): return None
+  if(len(list(pdb_hierarchy.models()))>1): return None
   fraction_of_nonH_incomplete = complete_model(pdb_hierarchy=pdb_hierarchy)
   cs = pdb_inp.crystal_symmetry()
   resolution = get_resolution(pdb_inp = pdb_inp)
