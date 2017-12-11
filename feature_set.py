@@ -9,6 +9,7 @@ from qrefine.super_cell import expand
 from mmtbx.monomer_library import server
 from mmtbx.building import extend_sidechains
 from libtbx import easy_pickle
+from libtbx import easy_mp
 
 mon_lib_server = server.server()
 pdb_dir = "/home/yanting/pdb/pdb/"
@@ -99,15 +100,20 @@ def get_resolution(pdb_inp):
 
 """Fraction of non-H atom-incomplete residues"""
 def complete_model(pdb_hierarchy):
-  number_of_residues = len(list(pdb_hierarchy.residue_groups()))
-  n_changed = extend_sidechains.extend_protein_model(
-    pdb_hierarchy,
-    mon_lib_server,
-    add_hydrogens=False)
-  fraction_of_nonH_incomplete = n_changed * 100. /number_of_residues
+  fraction_of_nonH_incomplete = None
+  try:
+    number_of_residues = len(list(pdb_hierarchy.residue_groups()))
+    n_changed = extend_sidechains.extend_protein_model(
+      pdb_hierarchy,
+      mon_lib_server,
+      add_hydrogens=False)
+    fraction_of_nonH_incomplete = n_changed * 100. /number_of_residues
+  except KeyboardInterrupt: raise
+  except Exception, e:
+    fraction_of_nonH_incomplete = None
   return fraction_of_nonH_incomplete
 
-def run(file_name):
+def run(file_name, pdb_code):
   pdb_inp = iotbx.pdb.input(file_name=file_name)
   pdb_hierarchy = pdb_inp.construct_hierarchy()
   n_atoms = pdb_hierarchy.atoms().size()
@@ -117,12 +123,13 @@ def run(file_name):
   cs = pdb_inp.crystal_symmetry()
   resolution = get_resolution(pdb_inp = pdb_inp)
   super_cell = expand(
-    pdb_hierarchy    = pdb_hierarchy,
-    crystal_symmetry = cs)
+    pdb_hierarchy             = pdb_hierarchy,
+    crystal_symmetry          = cs,
+    create_restraints_manager = False)
   symmetry_ss_bonds  = find_ss_across_symmetry(super_cell = super_cell)
   result_occupancies = get_altloc_counts(pdb_hierarchy=pdb_hierarchy)
   ligands = get_non_standard_items(pdb_hierarchy=pdb_hierarchy)
-  return group_args(
+  result = group_args(
     number_of_atoms             = pdb_hierarchy.atoms().size(),
     number_of_atoms_super_sphere= super_cell.ph_super_sphere.atoms().size(),
     occupancies                 = result_occupancies,
@@ -133,8 +140,10 @@ def run(file_name):
     ligands                     = ligands,
     symmetry_ss_bonds           = symmetry_ss_bonds,
     fraction_of_nonH_incomplete = fraction_of_nonH_incomplete)
+  easy_pickle.dump(pdb_code+".pkl", result)
 
 if __name__ == '__main__':
+  nproc=100
   # PDB model files
   path = "/net/cci/pdb_mirror/pdb/"
   of = open("".join([path,"INDEX"]),"r")
@@ -146,16 +155,17 @@ if __name__ == '__main__':
   dfiles = [
     os.path.basename("".join([path,f]).strip())[1:5] for f in of.readlines()]
   of.close()
-  #
+  # XXX For debugging
+  #run(file_name="1f8t.pdb", pdb_code="1f8t")
+  args = []
   for f in files:
     pdb_code = os.path.basename(f)[3:7]
     if(pdb_code in dfiles):
-      try:
-        result = run(file_name=f)
-        if(result is not None):
-          easy_pickle.dump(pdb_code+".pkl", result)
-      except KeyboardInterrupt: raise
-      except Exception, e:
-        print "FAILED:", f
-        print str(e)
-        print "-"*79
+      args.append([f, pdb_code])
+    #if(len(args)==200): break # For testing
+  #
+  for arg, res, err_str in easy_mp.multi_core_run(run, args, nproc):
+    if err_str:
+      print 'Error output from %s' % arg
+      print err_str
+      print '_'*80
